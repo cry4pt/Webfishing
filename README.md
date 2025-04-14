@@ -16,13 +16,13 @@ A comprehensive gameplay enhancement mod for Webfishing featuring unlockables, c
 
 ## Installation
 
-1. Ensure you have a mod loader installed for Webfishing
-2. Place `Cry4pt.gd` in your mods folder
-3. Launch the game with mod support enabled
+1. Ensure You Have A Mod Loader Installed For Webfishing [Gale Or R2modman)
+2. Download FinapseX In Said Mod Loader
+3. Launch The Game With Mod Support Enabled
 
 ## Configuration
 
-Edit these values in the script header:
+Edit These Values In The Script Header:
 ```gdscript
 var config = {
     "unlock_key": KEY_END,
