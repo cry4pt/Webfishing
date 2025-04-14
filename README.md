@@ -1,4 +1,4 @@
-# FinapseX Mod for Webfishing
+# FinapseX Script For Webfishing
 
 A comprehensive gameplay enhancement mod for Webfishing featuring unlockables, cheats, and quality-of-life improvements.
 
