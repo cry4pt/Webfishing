@@ -17,7 +17,7 @@ A comprehensive gameplay enhancement mod for Webfishing featuring unlockables, c
 ## Installation
 
 1. Ensure You Have A Mod Loader Installed For Webfishing [Gale Or R2modman)
-2. Download **FinapseX** In Said Mod Loader
+2. Download **FinapseX** And **CommandsEx** In Said Mod Loader
 3. Launch The Game With Mod Support Enabled
 
 ## Configuration
