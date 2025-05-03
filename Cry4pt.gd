@@ -257,7 +257,9 @@ func start_initialization_command(text, args):
         _local_chat_reset()
         log_message("[RUNNING]")
         _start_initialization()
-
+    else:
+        log_message("[ALREADY RUNNING]")
+        
 func unlock_command(text, args):
     if args.size() > 1:
         match args[1]:
@@ -466,6 +468,7 @@ func clear_command(text, args):
 func reset_command(text, args):
     PlayerData._reset_save()
     PlayerData.emit_signal("_inventory_refresh")
+    PlayerData.emit_signal("_hotbar_refresh")
     PlayerData.emit_signal("_letter_update")
     log_message("[RESET SAVE]")
 
@@ -551,10 +554,14 @@ func _local_chat_reset():
 func log_message(message):
     if config.enable_logs:
         Network._update_chat(message, true)
+    else:
+        return
 
 func notification_message(message):
     if config.enable_notifications:
         PlayerData._send_notification(message)
+    else:
+        return
 
 func _infinite_player_stats():
     PlayerData.badge_level = 50
@@ -568,10 +575,18 @@ func _infinite_player_stats():
     PlayerData.max_bait = INF
     PlayerData.fish_caught = INF
     Network._update_stat("fish_caught", PlayerData.fish_caught)
+    notification_message("[INF PLAYER STATS]")
+    log_message("[INF PLAYER STATS]")
+    yield(get_tree(), "idle_frame")
+    return "completed"  
 
 func _infinite_progress_quests():
     for quest in PlayerData.current_quests:
         PlayerData.current_quests[quest]["progress"] = INF
+    notification_message("[INF QUESTS PROGRESSED]")
+    log_message("[INF QUESTS PROGRESSED]")
+    yield(get_tree(), "idle_frame")
+    return "completed"
 
 func _infinite_complete_journal():
     for biome in PlayerData.VALID_JOURNAL_KEYS:
@@ -585,8 +600,17 @@ func _infinite_complete_journal():
                 "count": INF,
                 "record": INF
             }
+    notification_message("[INF JOURNAL COMPLETED]")
+    log_message("[INF JOURNAL COMPLETED]")
+    yield(get_tree(), "idle_frame")
+    return "completed"
 
 func _infinite_complete_quests():
+    var original_xp_rewards = {}
+    for quest in PlayerData.current_quests.keys():
+        original_xp_rewards[quest] = PlayerData.current_quests[quest]["xp_reward"]
+        PlayerData.current_quests[quest]["xp_reward"] = 0
+    
     var attempts = 0
     while PlayerData.current_quests.size() > 0 and attempts < 31:
         for quest in PlayerData.current_quests.keys():
@@ -594,9 +618,18 @@ func _infinite_complete_quests():
             PlayerData._complete_quest(quest)
             yield(get_tree(), "idle_frame")
         attempts += 1
+    
+    for quest in original_xp_rewards.keys():
+        if quest in PlayerData.current_quests:
+            PlayerData.current_quests[quest]["xp_reward"] = original_xp_rewards[quest]
+    
     PlayerData.money = INF
     PlayerData.cash_total = PlayerData.money
     UserSave._save_general_save()
+    notification_message("[INF QUESTS COMPLETED]")
+    log_message("[INF QUESTS COMPLETED]")
+    yield(get_tree(), "idle_frame")
+    return "completed"
 
 func _input(event):
     if event is InputEventKey and event.pressed:
@@ -681,6 +714,7 @@ func _unlock_cosmetics():
     return "completed"
 
 func _unlock_baits_and_lures():
+    PlayerData._refill_bait("worms", false)
     for bait in PlayerData.BAIT_DATA:
         if not PlayerData.bait_unlocked.has(bait):
             PlayerData.bait_unlocked.append(bait)
@@ -756,10 +790,23 @@ func _complete_journal():
             for fish_id in PlayerData.journal_logs[biome].keys():
                 if not PlayerData.journal_logs[biome].has(fish_id):
                     PlayerData.journal_logs[biome][fish_id] = {}
+                
+                var count = 1
+                var record = 1.00
+                
+                if "count" in PlayerData.journal_logs[biome][fish_id] and PlayerData.journal_logs[biome][fish_id]["count"] > 1:
+                    count = PlayerData.journal_logs[biome][fish_id]["count"]
+                
+                if "record" in PlayerData.journal_logs[biome][fish_id] and PlayerData.journal_logs[biome][fish_id]["record"] > 1.00:
+                    record = PlayerData.journal_logs[biome][fish_id]["record"]
+                
+                if record == 1.00:
+                    record = 1.01  
+                
                 PlayerData.journal_logs[biome][fish_id] = {
                     "quality": [0, 1, 2, 3, 4, 5],
-                    "count": randi() % 10000,
-                    "record": randi() % 10000
+                    "count": count,
+                    "record": record
                 }
     notification_message("[JOURNAL COMPLETED]")
     log_message("[JOURNAL COMPLETED]")
@@ -778,15 +825,25 @@ func _complete_quests():
     if config.infinite_values:
         _infinite_complete_quests()
     else:
+        var original_xp_rewards = {}
+        for quest in PlayerData.current_quests.keys():
+            original_xp_rewards[quest] = PlayerData.current_quests[quest]["xp_reward"]
+            PlayerData.current_quests[quest]["xp_reward"] = 0
         var attempts = 0
+
         while PlayerData.current_quests.size() > 0 and attempts < 31:
             for quest in PlayerData.current_quests.keys():
                 Network.MESSAGE_COUNT_TRACKER.clear()
                 PlayerData._complete_quest(quest)
                 yield(get_tree(), "idle_frame")
             attempts += 1
+
+        for quest in original_xp_rewards.keys():
+            if quest in PlayerData.current_quests:
+                PlayerData.current_quests[quest]["xp_reward"] = original_xp_rewards[quest]
         PlayerData.cash_total = PlayerData.money
         UserSave._save_general_save()
+
     notification_message("[QUESTS COMPLETED]")
     log_message("[QUESTS COMPLETED]")
     yield(get_tree(), "idle_frame")
@@ -797,17 +854,26 @@ func _combine_quests():
         _infinite_progress_quests()
         _infinite_complete_quests()
     else:
-        var attempts = 0
+        var original_xp_rewards = {}
+        for quest in PlayerData.current_quests.keys():
+            original_xp_rewards[quest] = PlayerData.current_quests[quest]["xp_reward"]
+            PlayerData.current_quests[quest]["xp_reward"] = 0
+        
         for quest in PlayerData.current_quests.keys():
             PlayerData.current_quests[quest]["progress"] = 99999
-
+        
+        var attempts = 0
         while PlayerData.current_quests.size() > 0 and attempts < 31:
             for quest in PlayerData.current_quests.keys():
                 Network.MESSAGE_COUNT_TRACKER.clear()
                 PlayerData._complete_quest(quest)
                 yield(get_tree(), "idle_frame")
             attempts += 1
-
+        
+        for quest in original_xp_rewards.keys():
+            if quest in PlayerData.current_quests:
+                PlayerData.current_quests[quest]["xp_reward"] = original_xp_rewards[quest]
+        
         PlayerData.cash_total = PlayerData.money
         UserSave._save_general_save()
     
@@ -1464,6 +1530,49 @@ func join(text, args):
     
     Network._search_for_lobby(lobby_code)
 
+func serverhop(text, args):
+    if Network.STEAM_LOBBY_ID != 0:
+        Network._leave_lobby()
+        yield(get_tree(), "idle_frame")
+
+    Network._find_all_webfishing_lobbies()
+    var lobbies = yield(Network, "_webfishing_lobbies_returned")
+
+    if lobbies.size() == 0:
+        return
+
+    var ideal_servers = []
+    var fallback_servers = []
+    
+    for lobby_id in lobbies:
+        var max_players = int(Steam.getLobbyData(lobby_id, "cap"))
+        var current_players = Steam.getNumLobbyMembers(lobby_id)
+        
+        if current_players >= 5 and current_players <= 10 and current_players < max_players:
+            ideal_servers.append(lobby_id)
+        elif current_players >= 5 and current_players <= 10 and current_players == max_players:
+            fallback_servers.append(lobby_id)
+
+    var final_servers = ideal_servers + fallback_servers
+    
+    if final_servers.size() == 0:
+        return
+
+    var selected_lobby = final_servers[randi() % final_servers.size()]
+    var max_players = int(Steam.getLobbyData(selected_lobby, "cap"))
+    var current_players = Steam.getNumLobbyMembers(selected_lobby)
+
+    if current_players < 5 or current_players > 10:
+        yield(get_tree(), "idle_frame")
+        serverhop_command(text, args)
+        return
+
+    Network._connect_to_lobby(selected_lobby)
+    
+    yield(get_tree(), "idle_frame")
+    if Network.STEAM_LOBBY_ID == 0 or Steam.getNumLobbyMembers(selected_lobby) > 10:
+        serverhop_command(text, args)
+
 func rod(text, args):
     continue_loop = true
     while continue_loop:
@@ -2042,4 +2151,3 @@ func _find_player_by_username(username) -> String:
         if player["name"].to_lower().find(username.to_lower()) != -1:
             return player["name"]
     return ""
-
