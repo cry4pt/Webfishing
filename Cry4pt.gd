@@ -575,18 +575,10 @@ func _infinite_player_stats():
     PlayerData.max_bait = INF
     PlayerData.fish_caught = INF
     Network._update_stat("fish_caught", PlayerData.fish_caught)
-    notification_message("[INF PLAYER STATS]")
-    log_message("[INF PLAYER STATS]")
-    yield(get_tree(), "idle_frame")
-    return "completed"  
 
 func _infinite_progress_quests():
     for quest in PlayerData.current_quests:
         PlayerData.current_quests[quest]["progress"] = INF
-    notification_message("[INF QUESTS PROGRESSED]")
-    log_message("[INF QUESTS PROGRESSED]")
-    yield(get_tree(), "idle_frame")
-    return "completed"
 
 func _infinite_complete_journal():
     for biome in PlayerData.VALID_JOURNAL_KEYS:
@@ -600,10 +592,6 @@ func _infinite_complete_journal():
                 "count": INF,
                 "record": INF
             }
-    notification_message("[INF JOURNAL COMPLETED]")
-    log_message("[INF JOURNAL COMPLETED]")
-    yield(get_tree(), "idle_frame")
-    return "completed"
 
 func _infinite_complete_quests():
     var original_xp_rewards = {}
@@ -626,10 +614,6 @@ func _infinite_complete_quests():
     PlayerData.money = INF
     PlayerData.cash_total = PlayerData.money
     UserSave._save_general_save()
-    notification_message("[INF QUESTS COMPLETED]")
-    log_message("[INF QUESTS COMPLETED]")
-    yield(get_tree(), "idle_frame")
-    return "completed"
 
 func _input(event):
     if event is InputEventKey and event.pressed:
